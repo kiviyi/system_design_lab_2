@@ -1,13 +1,15 @@
-FROM python:3.11-slim
+FROM ghcr.io/userver-framework/ubuntu-22.04-userver:latest
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
 
-COPY main.py .
-COPY openapi.yaml .
+RUN test -f third_party/userver/CMakeLists.txt || \
+    (echo "third_party/userver is missing; run: git submodule update --init --recursive" && false)
 
-EXPOSE 8000
+RUN cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build build --parallel 2
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8080
+
+CMD ["./build/fitness-tracker-userver", "--config", "configs/static_config.yaml", "--config_vars", "configs/config_vars.yaml"]

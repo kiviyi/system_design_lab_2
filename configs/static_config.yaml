@@ -1,0 +1,73 @@
+components_manager:
+  task_processors:
+    main-task-processor:
+      worker_threads: 4
+    fs-task-processor:
+      worker_threads: 2
+  default_task_processor: main-task-processor
+
+  components:
+    server:
+      listener:
+        port: $server-port
+        task_processor: main-task-processor
+
+    logging:
+      fs-task-processor: fs-task-processor
+      loggers:
+        default:
+          file_path: "@stderr"
+          level: $logger-level
+          overflow_behavior: discard
+
+    fitness-storage: {}
+
+    handler-register:
+      path: /register
+      method: POST
+      task_processor: main-task-processor
+
+    handler-token:
+      path: /token
+      method: POST
+      task_processor: main-task-processor
+
+    handler-users-create:
+      path: /users
+      method: POST
+      task_processor: main-task-processor
+
+    handler-users-search:
+      path: /users/search
+      method: GET
+      task_processor: main-task-processor
+
+    handler-exercises-create:
+      path: /exercises
+      method: POST
+      task_processor: main-task-processor
+
+    handler-exercises-list:
+      path: /exercises
+      method: GET
+      task_processor: main-task-processor
+
+    handler-workouts-create:
+      path: /users/{user_id}/workouts
+      method: POST
+      task_processor: main-task-processor
+
+    handler-workouts-add-exercise:
+      path: /users/{user_id}/workouts/{workout_id}/exercises
+      method: POST
+      task_processor: main-task-processor
+
+    handler-workouts-stats:
+      path: /users/{user_id}/workouts/stats
+      method: GET
+      task_processor: main-task-processor
+
+    handler-workouts-list:
+      path: /users/{user_id}/workouts
+      method: GET
+      task_processor: main-task-processor

@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# CMake and local builds
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+third_party/
+compile_commands.json
+Makefile
+cmake_install.cmake
+
+# Python caches from tooling and tests
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# IDEs and editors
+.idea/
+.vscode/

@@ -1,75 +1,92 @@
-# Fitness Tracker API
+# Fitness Tracker API on userver
 
-REST API для фитнес-трекера (Вариант 14). Управление пользователями, упражнениями и тренировками.
+REST API для фитнес-трекера, переписанный на `userver`. Сервис хранит данные в памяти процесса и сохраняет тот же набор прикладных сущностей: пользователи, упражнения, тренировки и bearer-аутентификация.
 
 ## Стек
 
-- Python 3.11
-- FastAPI
-- JWT аутентификация (python-jose, passlib)
-- In-memory хранилище
+- C++20
+- userver, вендорится в репозитории как git submodule
+- In-memory storage
+
+## Структура
+
+```text
+homework_2/
+├── CMakeLists.txt
+├── configs/
+│   ├── config_vars.yaml
+│   └── static_config.yaml
+├── third_party/
+│   └── userver/
+├── src/
+│   ├── api_utils.cpp
+│   ├── fitness_storage.cpp
+│   ├── handlers.cpp
+│   └── main.cpp
+├── Dockerfile
+├── docker-compose.yaml
+├── openapi.yaml
+└── README.md
+```
+
+## Сборка
+
+`userver` не нужно устанавливать в систему отдельно: он подключается из `third_party/userver` как vendored dependency.
+
+После клонирования репозитория обязательно инициализируйте submodule:
+
+```bash
+git submodule update --init --recursive
+```
+
+Полная локальная сборка:
+
+```bash
+git submodule update --init --recursive
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
 
 ## Запуск
 
-### Локально
-
 ```bash
-pip install -r requirements.txt
-python main.py
+./build/fitness-tracker-userver \
+  --config configs/static_config.yaml \
+  --config_vars configs/config_vars.yaml
 ```
 
-### Docker
+Сервис стартует на `http://localhost:8080`.
+
+## Docker
+
+Сборка контейнера использует тот же vendored `userver`, что и локальная сборка, поэтому submodule тоже должен быть инициализирован до запуска Docker build.
 
 ```bash
+git submodule update --init --recursive
 docker-compose up --build
 ```
 
-Сервер запускается на `http://localhost:8000`.
-
-## Документация
-
-- Swagger UI: http://localhost:8000/docs
-- OpenAPI JSON: http://localhost:8000/openapi.json
-- OpenAPI YAML: `openapi.yaml`
-
-## API Endpoints
-
-### Аутентификация
+## API
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
 | POST | `/register` | Регистрация пользователя |
-| POST | `/token` | Получение JWT токена |
-
-### Пользователи
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
+| POST | `/token` | Получение bearer-токена |
 | POST | `/users` | Создание пользователя |
 | GET | `/users/search` | Поиск по логину или маске имени/фамилии |
-
-### Упражнения (требуется аутентификация)
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
-| POST | `/exercises` | Создание упражнения |
+| POST | `/exercises` | Создание упражнения, нужен `Authorization: Bearer <token>` |
 | GET | `/exercises` | Список упражнений |
-
-### Тренировки (требуется аутентификация)
-
-| Метод | Endpoint | Описание |
-|-------|----------|----------|
 | POST | `/users/{user_id}/workouts` | Создание тренировки |
 | POST | `/users/{user_id}/workouts/{workout_id}/exercises` | Добавление упражнения в тренировку |
 | GET | `/users/{user_id}/workouts` | История тренировок |
 | GET | `/users/{user_id}/workouts/stats` | Статистика за период |
 
-## Примеры использования
+## Примеры
 
-### 1. Регистрация
+Регистрация:
 
 ```bash
-curl -X POST http://localhost:8000/register \
+curl -X POST http://localhost:8080/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "john",
@@ -80,22 +97,18 @@ curl -X POST http://localhost:8000/register \
   }'
 ```
 
-### 2. Получение токена
+Логин:
 
 ```bash
-curl -X POST http://localhost:8000/token \
+curl -X POST http://localhost:8080/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
   -d "username=john&password=secret123"
 ```
 
-Ответ:
-```json
-{"access_token": "eyJhbGciOiJIUzI1NiIs...", "token_type": "bearer"}
-```
-
-### 3. Создание упражнения
+Создание упражнения:
 
 ```bash
-curl -X POST http://localhost:8000/exercises \
+curl -X POST http://localhost:8080/exercises \
   -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -105,81 +118,9 @@ curl -X POST http://localhost:8000/exercises \
   }'
 ```
 
-### 4. Создание тренировки
+## Примечания
 
-```bash
-curl -X POST http://localhost:8000/users/<USER_ID>/workouts \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Тренировка груди", "date": "2024-03-20"}'
-```
-
-### 5. Добавление упражнения в тренировку
-
-```bash
-curl -X POST http://localhost:8000/users/<USER_ID>/workouts/<WORKOUT_ID>/exercises \
-  -H "Authorization: Bearer <TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "exercise_id": "<EXERCISE_ID>",
-    "sets": 4,
-    "reps": 10,
-    "weight": 80.0
-  }'
-```
-
-### 6. Статистика за период
-
-```bash
-curl "http://localhost:8000/users/<USER_ID>/workouts/stats?start_date=2024-01-01&end_date=2024-12-31" \
-  -H "Authorization: Bearer <TOKEN>"
-```
-
-## Тесты
-
-```bash
-pip install pytest httpx
-pytest tests.py -v
-```
-
-## Структура проекта
-
-```
-homework_2/
-├── main.py               # Основное приложение FastAPI
-├── openapi.yaml          # OpenAPI спецификация
-├── tests.py              # Unit-тесты
-├── Dockerfile            # Образ контейнера
-├── docker-compose.yaml   # Конфигурация Docker Compose
-├── requirements.txt      # Зависимости Python
-└── README.md             # Документация
-```
-
-## Модели данных
-
-### User
-| Поле | Тип | Описание |
-|------|-----|----------|
-| id | UUID | Идентификатор |
-| username | string | Логин |
-| first_name | string | Имя |
-| last_name | string | Фамилия |
-| email | string | Email |
-| hashed_password | string | Хеш пароля |
-
-### Exercise
-| Поле | Тип | Описание |
-|------|-----|----------|
-| id | UUID | Идентификатор |
-| name | string | Название |
-| description | string | Описание |
-| muscle_group | string | Группа мышц |
-
-### Workout
-| Поле | Тип | Описание |
-|------|-----|----------|
-| id | UUID | Идентификатор |
-| user_id | UUID | ID пользователя |
-| name | string | Название тренировки |
-| date | string | Дата (YYYY-MM-DD) |
-| exercises | list | Упражнения с подходами/повторениями |
+- `openapi.yaml` оставлен как контракт API.
+- Данные и токены не переживают перезапуск процесса.
+- Если `third_party/userver` отсутствует, `cmake` завершится с подсказкой запустить `git submodule update --init --recursive`.
+- Старые Python-тесты удалены, потому что приложение больше не работает как встроенный FastAPI app внутри `pytest`.
